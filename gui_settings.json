@@ -1,0 +1,12 @@
+{
+  "path": "C:\\MyFile\\Project_SVN\\Project 871 TigerCub\\300 Software\\301 Mobile Firmware\\",
+  "min_severity": "Low",
+  "exclude": "*/Drivers/*; */Middlewares/*; */build/*; */ForeverSleeping/*",
+  "exclude_names": "*- Copy*; *.bak; *.orig; *.old",
+  "skip_noisy": false,
+  "write_excel": false,
+  "disabled_rules": [],
+  "standards": [
+    "MISRA C:2025"
+  ]
+}
