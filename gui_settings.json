@@ -1,8 +1,8 @@
 {
-  "path": "C:\\MyFile\\Project_SVN\\Project 871 TigerCub\\300 Software\\301 Mobile Firmware\\",
+  "path": "C:\\MyFile\\Projects\\941-Faraday\\src\\UserBranch_MainModule_Comms\\",
   "min_severity": "Low",
-  "exclude": "*/Drivers/*; */Middlewares/*; */build/*; */ForeverSleeping/*",
-  "exclude_names": "*- Copy*; *.bak; *.orig; *.old",
+  "exclude": "*/Drivers/*; */Middlewares/*; */ST67W61/*; */USBX/*; */FileX/*",
+  "exclude_names": "*- Copy*; *.bak; *.orig; *.old; *.hpp; *.cpp",
   "skip_noisy": false,
   "write_excel": false,
   "disabled_rules": [],

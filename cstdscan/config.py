@@ -7,6 +7,8 @@ import os
 DEFAULTS = {
     # ---- what to scan -----------------------------------------------------
     "extensions": [".c", ".h", ".cpp", ".hpp", ".cc", ".cxx", ".hh", ".hxx"],
+    "language": "auto",               # auto | c | c++; overrides all files
+    "header_language": "auto",        # language for ambiguous .h files
     # Third-party trees are usually scanned only for information; listing a
     # glob here keeps the file out of the report entirely.
     "exclude": [
@@ -85,7 +87,7 @@ DEFAULTS = {
     ],
 
     # ---- rule selection ---------------------------------------------------
-    "enabled_standards": ["C-STD", "MISRA C:2025", "CWE"],
+    "enabled_standards": ["C-STD", "MISRA C:2025", "MISRA C++:2023", "CWE"],
     "min_severity": "Low",              # Critical | High | Medium | Low
     "disabled_rules": [],
     "enabled_rules": [],                # if non-empty, only these run
@@ -125,6 +127,12 @@ class Config(dict):
 
     # ------------------------------------------------------------------
     def rule_enabled(self, rule, rel_path=""):
+        if rel_path:
+            language = self.language_for(rel_path)
+            if rule.standard == "MISRA C++:2023" and language != "c++":
+                return False
+            if rule.standard == "MISRA C:2025" and language != "c":
+                return False
         if self["enabled_rules"]:
             if rule.id not in self["enabled_rules"]:
                 return False
@@ -140,6 +148,23 @@ class Config(dict):
             if fnmatch.fnmatch(posix, pattern) and rule.id in ids:
                 return False
         return True
+
+    def language_for(self, path):
+        for key in ("language", "header_language"):
+            if self[key] not in ("auto", "c", "c++"):
+                raise ValueError("%s must be auto, c or c++" % key)
+        if self["language"] != "auto":
+            return self["language"]
+        ext = os.path.splitext(path)[1].lower()
+        if ext == ".h":
+            if self["header_language"] != "auto":
+                return self["header_language"]
+            # C-compatible headers have no intrinsic language. Preserve the
+            # existing C default unless only the C++ MISRA family is selected.
+            standards = self["enabled_standards"]
+            return ("c++" if "MISRA C++:2023" in standards and
+                    "MISRA C:2025" not in standards else "c")
+        return "c" if ext == ".c" else "c++"
 
     def path_excluded(self, rel_path):
         posix = "/" + rel_path.replace(os.sep, "/")

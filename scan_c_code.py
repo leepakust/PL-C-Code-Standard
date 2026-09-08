@@ -4,7 +4,7 @@
     python scan_c_code.py <path> [<path> ...] [options]
 
 Scans C and C++ source for departures from the house C coding standard,
-MISRA C:2025 and the CWE weakness list, and writes an Excel report naming
+MISRA C:2025, MISRA C++:2023 and the CWE weakness list, and writes an Excel report naming
 the file, the line, the rule and the offending code.
 """
 
@@ -19,6 +19,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from cstdscan import __version__                             # noqa: E402
 from cstdscan.config import Config, DEFAULTS                 # noqa: E402
 from cstdscan.model import RULES, SEVERITY_ORDER             # noqa: E402
+from cstdscan.misra_cpp_rules import COVERAGE                # noqa: E402
 from cstdscan.report import write_csv, write_excel           # noqa: E402
 from cstdscan.scanner import scan                            # noqa: E402
 
@@ -30,7 +31,7 @@ def build_parser():
     p = argparse.ArgumentParser(
         prog="scan_c_code",
         description="Scan C/C++ source against the house C coding standard, "
-                    "MISRA C:2025 and the CWE weakness list, and write an "
+                    "MISRA C:2025, MISRA C++:2023 and the CWE weakness list, and write an "
                     "Excel report of every violation.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
@@ -59,12 +60,16 @@ examples
                         'case-insensitive)')
     p.add_argument("--ext", metavar="LIST",
                    help="comma separated list of extensions to scan")
+    p.add_argument("--language", choices=["auto", "c", "c++"],
+                   help="source language (default: auto by extension)")
+    p.add_argument("--header-language", choices=["auto", "c", "c++"],
+                   help="language for ambiguous .h files")
     p.add_argument("--min-severity", choices=SEVERITIES, metavar="SEV",
                    help="report only this severity or worse "
                         "(Critical, High, Medium, Low)")
     p.add_argument("--std", metavar="LIST",
                    help="comma separated standards to apply "
-                        "(C-STD, 'MISRA C:2025', CWE)")
+                        "(C-STD, 'MISRA C:2025', 'MISRA C++:2023', CWE)")
     p.add_argument("--only", metavar="LIST",
                    help="comma separated rule ids - run only these")
     p.add_argument("--disable", metavar="LIST",
@@ -103,6 +108,8 @@ def list_rules():
             print("-" * len(current))
         print("  %-*s  %-8s %-9s %s"
               % (width, rule.id, rule.severity, rule.rule_class, rule.title))
+        if rule.id in COVERAGE:
+            print("    Coverage: " + COVERAGE[rule.id])
     print("\n%d rules total." % len(order))
 
 
@@ -110,7 +117,9 @@ CONFIG_TEMPLATE = """# C / C++ coding standard scanner configuration.
 # Every key below is optional; anything omitted keeps its built-in default.
 
 # --- what to scan ---------------------------------------------------------
-extensions: [".c", ".h", ".cpp", ".hpp"]
+extensions: [".c", ".h", ".cpp", ".hpp", ".cc", ".cxx", ".hh", ".hxx"]
+language: "auto"          # auto | c | c++
+header_language: "auto"   # set c++ for C++ .h files in mixed projects
 exclude:
   - "*/build/*"
   - "*/Debug/*"
@@ -152,7 +161,7 @@ error_returning_patterns:
 check_project_return_values: true
 
 # --- rule selection -------------------------------------------------------
-enabled_standards: ["C-STD", "MISRA C:2025", "CWE"]
+enabled_standards: ["C-STD", "MISRA C:2025", "MISRA C++:2023", "CWE"]
 min_severity: "Low"
 disabled_rules: []
 # enabled_rules: ["C-STD-6.1.5", "CWE-476"]   # if set, only these run
@@ -162,6 +171,10 @@ per_path_disabled_rules:
 
 
 def apply_overrides(config, args):
+    if args.language:
+        config["language"] = args.language
+    if args.header_language:
+        config["header_language"] = args.header_language
     if args.exclude:
         config["exclude"] = list(config["exclude"]) + args.exclude
     if args.exclude_name:
@@ -229,11 +242,11 @@ def main(argv=None):
             return 2
 
     try:
-        config = Config.load(args.config)
+        config = apply_overrides(Config.load(args.config), args)
+        config.language_for("")
     except (KeyError, ValueError) as exc:
         print("error: bad configuration: %s" % exc, file=sys.stderr)
         return 2
-    config = apply_overrides(config, args)
 
     def progress(rel, done, total):
         if not args.quiet and total:

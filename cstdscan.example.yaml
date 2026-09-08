@@ -2,7 +2,9 @@
 # Every key below is optional; anything omitted keeps its built-in default.
 
 # --- what to scan ---------------------------------------------------------
-extensions: [".c", ".h", ".cpp", ".hpp"]
+extensions: [".c", ".h", ".cpp", ".hpp", ".cc", ".cxx", ".hh", ".hxx"]
+language: "auto"
+header_language: "auto"   # use c++ for C++ .h files in mixed projects
 exclude:
   - "*/build/*"
   - "*/Debug/*"
@@ -44,7 +46,7 @@ error_returning_patterns:
 check_project_return_values: true
 
 # --- rule selection -------------------------------------------------------
-enabled_standards: ["C-STD", "MISRA C:2025", "CWE"]
+enabled_standards: ["C-STD", "MISRA C:2025", "MISRA C++:2023", "CWE"]
 min_severity: "Low"
 disabled_rules: []
 # enabled_rules: ["C-STD-6.1.5", "CWE-476"]   # if set, only these run

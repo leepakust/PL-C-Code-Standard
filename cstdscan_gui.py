@@ -32,7 +32,14 @@ from cstdscan.scanner import scan                               # noqa: E402
 
 SETTINGS_FILE = os.path.join(HERE, "gui_settings.json")
 SEVERITIES = ["Critical", "High", "Medium", "Low"]
-STANDARDS = ["C-STD", "MISRA C:2025", "CWE"]
+STANDARDS = ["C-STD", "MISRA C:2025", "MISRA C++:2023", "CWE"]
+
+
+def selected_standards(settings):
+    """Enable newly introduced families once; preserve subsequent choices."""
+    selected = settings.get("standards", STANDARDS)
+    known = settings.get("known_standards", ["C-STD", "MISRA C:2025", "CWE"])
+    return [name for name in STANDARDS if name in selected or name not in known]
 
 SEVERITY_COLOUR = {
     "Critical": "#F8CBCB",
@@ -100,8 +107,8 @@ class RuleWindow(tk.Toplevel):
         self.tree = ttk.Treeview(self, columns=columns, show="headings",
                                  selectmode="browse")
         for name, text, width in (
-                ("on", "On", 40), ("rule", "Rule", 120),
-                ("standard", "Standard", 110), ("severity", "Severity", 80),
+                ("on", "On", 40), ("rule", "Rule", 170),
+                ("standard", "Standard", 150), ("severity", "Severity", 80),
                 ("class", "Class", 90), ("title", "Title", 520)):
             self.tree.heading(name, text=text)
             self.tree.column(name, width=width,
@@ -263,6 +270,16 @@ class ScannerApp(tk.Tk):
                    command=self.choose_rules).grid(row=1, column=6,
                                                    sticky="e", pady=(6, 0))
         options.columnconfigure(1, weight=1)
+        ttk.Label(options, text="Language").grid(row=3, column=0, sticky="w", pady=6)
+        self.language_var = tk.StringVar(value="auto")
+        ttk.Combobox(options, textvariable=self.language_var, width=10,
+                     state="readonly", values=["auto", "c", "c++"]).grid(
+                         row=3, column=1, sticky="w", padx=6)
+        ttk.Label(options, text=".h language").grid(row=3, column=2, sticky="w")
+        self.header_language_var = tk.StringVar(value="auto")
+        ttk.Combobox(options, textvariable=self.header_language_var, width=10,
+                     state="readonly", values=["auto", "c", "c++"]).grid(
+                         row=3, column=3, sticky="w")
 
         filters = ttk.Frame(self, padding=(10, 0, 10, 6))
         filters.pack(fill="x")
@@ -296,7 +313,7 @@ class ScannerApp(tk.Tk):
                                  show="headings", selectmode="browse")
         for name, text, width, anchor in (
                 ("severity", "Severity", 80, "center"),
-                ("rule", "Rule", 120, "w"),
+                ("rule", "Rule", 170, "w"),
                 ("file", "File", 300, "w"),
                 ("line", "Line", 60, "e"),
                 ("function", "Function", 160, "w"),
@@ -337,7 +354,7 @@ class ScannerApp(tk.Tk):
 
         self.by_rule = self._summary_tab(
             notebook, "By rule",
-            (("rule", "Rule", 120), ("standard", "Standard", 110),
+            (("rule", "Rule", 170), ("standard", "Standard", 150),
              ("severity", "Severity", 80), ("title", "Title", 480),
              ("count", "Count", 70), ("files", "Files", 70)))
         self.by_file = self._summary_tab(
@@ -427,6 +444,8 @@ class ScannerApp(tk.Tk):
         except (OSError, ValueError):
             return
         self.path_var.set(data.get("path", ""))
+        self.language_var.set(data.get("language", "auto"))
+        self.header_language_var.set(data.get("header_language", "auto"))
         self.severity_var.set(data.get("min_severity", "Low"))
         self.exclude_var.set(data.get("exclude", self.exclude_var.get()))
         self.exclude_name_var.set(
@@ -436,11 +455,13 @@ class ScannerApp(tk.Tk):
         self.disabled_rules = [r for r in data.get("disabled_rules", [])
                                if r in RULES]
         for name, var in self.std_vars.items():
-            var.set(name in data.get("standards", STANDARDS))
+            var.set(name in selected_standards(data))
 
     def _save_settings(self):
         data = {
             "path": self.path_var.get(),
+            "language": self.language_var.get(),
+            "header_language": self.header_language_var.get(),
             "min_severity": self.severity_var.get(),
             "exclude": self.exclude_var.get(),
             "exclude_names": self.exclude_name_var.get(),
@@ -448,6 +469,7 @@ class ScannerApp(tk.Tk):
             "write_excel": self.excel_var.get(),
             "disabled_rules": self.disabled_rules,
             "standards": [n for n, v in self.std_vars.items() if v.get()],
+            "known_standards": STANDARDS,
         }
         try:
             with open(SETTINGS_FILE, "w", encoding="utf-8") as fh:
@@ -487,6 +509,8 @@ class ScannerApp(tk.Tk):
 
     def build_config(self):
         cfg = Config()
+        cfg["language"] = self.language_var.get()
+        cfg["header_language"] = self.header_language_var.get()
         cfg["min_severity"] = self.severity_var.get()
         cfg["enabled_standards"] = [n for n, v in self.std_vars.items()
                                     if v.get()]
@@ -727,6 +751,10 @@ class ScannerApp(tk.Tk):
         self.detail.insert("end", rule.why + "\n")
         self.detail.insert("end", "How to fix it: ", "label")
         self.detail.insert("end", rule.fix + "\n")
+        from cstdscan.misra_cpp_rules import COVERAGE
+        if v.rule_id in COVERAGE:
+            self.detail.insert("end", "\nImplemented coverage\n", "h2")
+            self.detail.insert("end", COVERAGE[v.rule_id] + "\n")
         if v.also:
             self.detail.insert("end", "Also cites: ", "label")
             self.detail.insert("end", ", ".join(v.also) + "\n")
@@ -849,7 +877,7 @@ class ScannerApp(tk.Tk):
             "About",
             "C / C++ Coding Standard Scanner %s\n\n"
             "Scans C and C++ source against the house C coding standard, "
-            "MISRA C:2025 and the CWE weakness list, and writes an Excel "
+            "MISRA C:2025, MISRA C++:2023 and the CWE weakness list, and writes an Excel "
             "report of every violation.\n\n"
             "%d rules in the catalogue." % (__version__, len(RULES)))
 

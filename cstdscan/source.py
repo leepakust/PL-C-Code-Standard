@@ -48,6 +48,10 @@ TYPE_KEYWORDS = BASIC_TYPE_WORDS | {
 }
 
 
+_RAW_STRING_OPEN = re.compile(r'(?:u8|u|U|L)?R"([^\s()\\]{0,16})\(')
+_PP_NUMBER = re.compile(r"(?:\d|\.\d)(?:[\w.']|(?<=[eEpP])[+-])*")
+
+
 def mask_source(text):
     """Blank out comments and the contents of literals.
 
@@ -68,6 +72,23 @@ def mask_source(text):
         ch = text[i]
         nxt = text[i + 1] if (i + 1) < n else ""
         if state == "code":
+            raw = _RAW_STRING_OPEN.match(text, i) if ch in 'uULR' else None
+            if raw and (i == 0 or not (text[i - 1].isalnum() or text[i - 1] == "_")):
+                terminator = ")" + raw.group(1) + '"'
+                end = text.find(terminator, raw.end())
+                end = n if end < 0 else end + len(terminator)
+                for j in range(i, end):
+                    if text[j] != "\n":
+                        out[j] = " "
+                line += text[i:end].count("\n")
+                i = end
+                continue
+            # Consume a preprocessing number as one token. Apostrophes in
+            # C++14 digit separators must not open a character literal.
+            if ch.isdigit() or (ch == "." and nxt.isdigit()):
+                number = _PP_NUMBER.match(text, i)
+                i = number.end()
+                continue
             if ch == "/" and nxt == "*":
                 state = "block"
                 start, start_line = i, line
@@ -102,8 +123,9 @@ def mask_source(text):
                 out[i] = " "
         elif state == "line":
             if ch == "\n":
-                comments.append((start_line, line, text[start:i]))
-                state = "code"
+                if i == 0 or text[i - 1] != "\\":
+                    comments.append((start_line, line, text[start:i]))
+                    state = "code"
             else:
                 out[i] = " "
         elif state in ("string", "char"):

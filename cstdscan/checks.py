@@ -172,6 +172,8 @@ class FileChecker:
         self.violations = []
         self.globals = {}
         self.locals_by_func = {}
+        self.ignore_file = any("cstd-ignore-file" in text.lower()
+                               for _, _, text in sf.comments)
 
     # ------------------------------------------------------------- plumbing
     def add(self, rule_id, line, col=1, detail="", also=None,
@@ -192,6 +194,8 @@ class FileChecker:
             also=list(also or []), confidence=confidence))
 
     def _suppressed(self, rule_id, line):
+        if self.ignore_file:
+            return True
         blob = self.sf.comments_near(line, before=1)
         if not blob:
             return False
@@ -202,7 +206,7 @@ class FileChecker:
             pos = low.find(marker)
             while pos >= 0:
                 tail = blob[pos:pos + 200]
-                ids = re.findall(r"[A-Za-z]+-[\d.]+[a-z]?|CWE-\d+", tail)
+                ids = re.findall(r"(?:MISRA-CPP|C-STD|MISRA|CWE)-\d+(?:\.\d+)*[a-z]?", tail)
                 if not ids or rule_id in ids:
                     return True
                 pos = low.find(marker, pos + 1)

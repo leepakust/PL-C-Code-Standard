@@ -1,9 +1,10 @@
 """Rule catalogue and violation record for the C/C++ coding standard scanner.
 
-Three rule families are carried side by side:
+Four rule families are carried side by side:
 
     C-STD   -- the house C coding standard (layout, naming, structure, safety)
     MISRA   -- MISRA C:2025 rules that are checkable from source alone
+    MISRA-CPP -- implemented lexical subset of MISRA C++:2023 (C++17)
     CWE     -- CWE weaknesses relevant to C/C++ (CWE list 4.20)
 
 Every rule the scanner can raise is listed here, so the "Rules" sheet of the
@@ -21,7 +22,7 @@ CLASS_ORDER = {"Mandatory": 0, "Required": 1, "Security": 2, "Advisory": 3}
 @dataclass(frozen=True)
 class Rule:
     id: str
-    standard: str        # C-STD | MISRA C:2025 | CWE
+    standard: str        # C-STD | MISRA C:2025 | MISRA C++:2023 | CWE
     category: str        # grouping used on the summary sheet
     severity: str        # Critical | High | Medium | Low
     rule_class: str      # Mandatory | Required | Advisory | Security
@@ -575,6 +576,15 @@ _CATALOGUE = [
        "depend on which header was included first.",
        "Give each type a unique, component-prefixed name."),
 ]
+
+from .misra_cpp_rules import SPECS as CPP_SPECS, STANDARD as CPP_STANDARD
+
+_CATALOGUE.extend(
+    Rule("MISRA-CPP-" + number, CPP_STANDARD, area,
+         "Low" if rule_class == "Advisory" else "High", rule_class,
+         title, why, fix)
+    for number, rule_class, area, title, why, fix, _coverage in CPP_SPECS
+)
 
 RULES = {r.id: r for r in _CATALOGUE}
 

@@ -89,6 +89,10 @@ def project_checks(index, config, file_globals):
                     % ", ".join(names))
 
     # ---- duplicate external definitions ---------------------------------
+    # C linkage rules cannot compare overloads, templates or C++ inline
+    # definitions. Keep C++ entities out of the C cross-file analysis.
+    index = ProjectIndex([sf for sf in index.files
+                          if config.language_for(sf.rel) == "c"])
     for name, sites in index.definitions.items():
         if len(sites) > 1:
             files = sorted({rel for rel, _ln in sites})

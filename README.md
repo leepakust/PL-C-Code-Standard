@@ -2,19 +2,21 @@
 
 A static scanner for C and C++ source, in the spirit of a lint tool. It reads
 the source directly — no build, no include paths, no toolchain — and reports
-every place the code departs from three rule sets applied together:
+potential departures from four rule sets, selected by language and configuration:
 
 | Family | What it covers |
 |---|---|
 | **C-STD** | House C coding standard: layout, naming, file and function structure, types, control flow, error handling, prohibited functions |
 | **MISRA C:2025** | The MISRA rules that are checkable from source alone (the 2025 edition, including the new 8.18, 11.11 and 19.3) |
+| **MISRA C++:2023** | 28 implemented lexical checks based on the 2023 C++17 guidelines; see the coverage notes below |
 | **CWE** | The memory-safety, initialisation, format-string and concurrency weaknesses that matter in C |
 
 The output is an Excel workbook naming **the file, the line, the rule and the
 offending code**, plus why the rule exists and how to fix it.
 
-99 rules ship enabled by default. `python scan_c_code.py --list-rules` prints
-the catalogue.
+127 rules ship enabled by default. MISRA C rules apply to C files and MISRA
+C++ rules to C++ files. `python scan_c_code.py --list-rules` prints the
+catalogue and each C++ check's implemented coverage.
 
 ---
 
@@ -76,6 +78,79 @@ python scan_c_code.py --list-rules
 python scan_c_code.py --write-config cstdscan.yaml
 ```
 
+## MISRA C++:2023 support
+
+Select **MISRA C++:2023** in the window, or use:
+
+```bash
+python scan_c_code.py src --std "MISRA C++:2023" -o Reports/cpp_scan.xlsx
+python scan_c_code.py src --std "MISRA C++:2023" --language c++ --fail-on High
+python scan_c_code.py src --header-language c++
+python scan_c_code.py src --only MISRA-CPP-12.3.1,MISRA-CPP-26.3.1
+python scan_c_code.py samples/sample_cpp_good.cpp --std "MISRA C++:2023"
+python -m unittest -v test_misra_cpp
+```
+
+The rule ID `MISRA-CPP-12.3.1` refers to Rule 12.3.1 of MISRA C++:2023.
+The existing `MISRA-...` IDs continue to refer to MISRA C:2025.
+Rule classes follow the supplied 2023 document. Severity is a scanner
+priority: the new Required checks use High and Advisory checks use Low.
+For example, dynamic allocation is Advisory (21.6.1).
+
+**Language selection:** `auto` treats `.c` as C, and `.cpp`, `.cc`, `.cxx`,
+`.hpp`, `.hh`, `.hxx` as C++. Ambiguous `.h` files default to C when both
+MISRA families are selected. Selecting only the C++ MISRA family makes
+`.h` files C++. Use `--header-language c++` for C++ headers in mixed projects,
+or `--language c++` to interpret every selected file as C++. Both controls
+are available in the GUI and YAML/JSON configuration. Existing GUI standard
+choices are retained, and the new C++ family is enabled on the first upgrade.
+
+The implementation is a **lexical subset**, not a complete MISRA compliance
+checker. It does not compile C++17, resolve types or overloads, instantiate
+templates, expand macros, determine active conditional branches, or perform
+whole-program lifetime/ownership analysis. A clean scan is not proof of
+MISRA compliance. Rules not listed below are not implemented for C++.
+House C style and CWE checks remain separately selectable; they retain
+their existing heuristics and can be noisy on idiomatic C++.
+
+| Rule numbers (prefix `MISRA-CPP-`) | Implemented checks |
+|---|---|
+| 5.7.1, 5.7.3 | Nested block-comment openers and line splices in line comments |
+| 5.13.3, 5.13.5 | Octal integer literals and suffixes starting with lowercase `l` |
+| 7.11.1 | `NULL` tokens; zero-valued pointer expressions are not analyzed |
+| 8.2.2 | Built-in scalar C-style/functional casts; excludes `(void)` and brace initialization |
+| 8.2.5 | `reinterpret_cast` pointer/reference targets, with byte/character/void-pointer exceptions; integral targets require target-width analysis |
+| 9.6.1, 10.3.1, 10.4.1, 12.3.1, 16.5.1 | `goto`, unnamed namespaces in headers, `asm`, `union`, logical operator overloads |
+| 18.5.2 | Explicit termination calls and address uses |
+| 19.0.2, 19.0.4, 19.1.2, 19.3.1, 19.6.1 | Function macros, externally defined macro undefinition, unmatched conditional groups, stringizing/token pasting, pragmas |
+| 21.2.1, 21.2.3, 21.2.4 | C numeric conversions, `system`, `offsetof` |
+| 21.6.1 | Ordinary `new`/`delete`, C allocation APIs and `std::make_unique/shared`; placement new and implicit container allocations are not checked |
+| 21.10.1, 21.10.2 | C variadic facilities and non-local jump facilities/includes |
+| 24.5.2, 25.5.1, 26.3.1, 30.0.1 | Raw memory copy/comparison, global locale changes, explicit `std::vector<bool>`, C stream I/O |
+
+Library-name findings use Medium confidence because the scanner cannot bind
+names to declarations. Explicit member calls and other qualified namespaces
+are excluded, as are the multi-argument algorithm overloads of `std::remove`.
+Aliases, indirect calls, macro-generated constructs and some type-dependent
+exceptions require compiler-assisted analysis or review. The rule catalogue
+and the workbook's **C++ coverage** sheet document the exact subset for each
+implemented rule. The GUI also displays coverage with a selected finding.
+
+Raw strings (including encoding prefixes), digit separators and continued
+line comments are masked while preserving physical source line/column
+positions. C++ checks inspect namespace and class bodies without relying on
+the legacy C function parser; the Function column may be blank in those scopes.
+
+Existing suppression mechanisms also accept C++ rule IDs:
+
+```cpp
+union Data { int i; float f; }; // cstd-ignore: MISRA-CPP-12.3.1 reviewed deviation
+```
+
+The source reference was the user-supplied `MISRA-CPP-2023-PDF-Cpp17.pdf`.
+Rule descriptions here are scanner summaries; the licensed PDF is not
+bundled or required to run the scanner.
+
 ## What the report contains
 
 | Sheet | Contents |
@@ -85,6 +160,7 @@ python scan_c_code.py --write-config cstdscan.yaml
 | **By file** | Per-file counts by severity, and the rule each file breaks most |
 | **By rule** | Per-rule counts and how many files are affected |
 | **Rules reference** | The full catalogue, with each rule marked enabled or disabled for this scan |
+| **C++ coverage** | The implemented lexical scope and limitations of each MISRA C++:2023 check |
 
 The Violations sheet is a filterable Excel table with the header row frozen,
 so you can filter to, say, Critical + Security and work down the list.
@@ -124,6 +200,7 @@ keeps its default. The keys worth knowing:
 | Key | Purpose |
 |---|---|
 | `extensions`, `exclude` | which files are scanned, by path |
+| `language`, `header_language` | `auto`, `c` or `c++`; language override for all files or ambiguous `.h` headers |
 | `exclude_names` | which files are scanned, by bare file name - matches anywhere in the tree, so `"*- copy*"` skips every `... - Copy.c` regardless of folder |
 | `max_line_length`, `max_function_lines`, `max_cyclomatic_complexity` | layout and complexity limits |
 | `file_header_required_tags`, `function_header_tags` | what a heading comment must contain (set `require_file_header: false` to switch the check off) |
@@ -203,12 +280,15 @@ cstdscan/
     model.py            the rule catalogue: id, severity, why, how to fix
     source.py           lexical model of one translation unit
     checks.py           the per-file rule checks
+    misra_cpp.py        MISRA C++:2023 lexical checks
+    misra_cpp_rules.py  C++ rule catalogue and coverage descriptions
     project.py          file discovery, cross-file index and checks
     report.py           Excel and CSV writers
     config.py           defaults, config file loading, rule filtering
     scanner.py          orchestration
 samples/                sample_good.* scans clean; sample_bad.* breaks 50+ rules
 selftest.py             checks the scanner against the samples
+test_misra_cpp.py        C++ rule, exception, language and report regressions
 Reports/                where the window puts its reports (created on first scan)
 gui_settings.json       the window's remembered settings (created on first exit)
 ```

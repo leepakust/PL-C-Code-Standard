@@ -7,6 +7,7 @@ from . import __version__
 from .checks import FileChecker
 from .config import Config
 from .model import RULES
+from .misra_cpp import CppFileChecker
 from .project import ProjectIndex, discover_files, project_checks
 from .source import read_source
 
@@ -20,6 +21,7 @@ class ScanResult:
 
 def scan(roots, config=None, progress=None):
     config = config or Config()
+    config.language_for("")  # Validate before discovery, including empty scans.
     result = ScanResult()
 
     entries = discover_files(roots, config)
@@ -36,6 +38,13 @@ def scan(roots, config=None, progress=None):
 
     file_globals = {}
     for sf in files:
+        if config.language_for(sf.rel) == "c++":
+            try:
+                result.violations.extend(CppFileChecker(sf, config, index).run())
+            except Exception as exc:
+                result.errors.append((sf.rel, "C++ check failed: %s: %s\n%s"
+                                      % (type(exc).__name__, exc,
+                                         traceback.format_exc(limit=3))))
         try:
             checker = FileChecker(sf, config, index)
             result.violations.extend(checker.run())
@@ -62,5 +71,6 @@ def scan(roots, config=None, progress=None):
         "active_rules": sum(1 for r in RULES.values()
                             if config.rule_enabled(r)),
         "file_lines": {sf.rel: sf.line_count for sf in files},
+        "file_languages": {sf.rel: config.language_for(sf.rel) for sf in files},
     }
     return result

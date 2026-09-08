@@ -11,6 +11,7 @@ from openpyxl.utils import get_column_letter
 from openpyxl.worksheet.table import Table, TableStyleInfo
 
 from .model import RULES, SEVERITY_ORDER, rule_title
+from .misra_cpp_rules import COVERAGE
 
 
 HEADER_FILL = PatternFill("solid", fgColor="1F3B57")
@@ -38,8 +39,8 @@ VIOLATION_COLUMNS = [
     ("#", 6),
     ("Severity", 10),
     ("Class", 11),
-    ("Standard", 14),
-    ("Rule", 14),
+    ("Standard", 20),
+    ("Rule", 23),
     ("Rule title", 42),
     ("File", 38),
     ("Line", 7),
@@ -98,6 +99,17 @@ def write_excel(path, violations, stats, config):
     _sheet_by_file(wb.create_sheet("By file"), violations, stats)
     _sheet_by_rule(wb.create_sheet("By rule"), violations)
     _sheet_rules(wb.create_sheet("Rules reference"), config)
+    coverage = wb.create_sheet("C++ coverage")
+    coverage.append(["Rule", "Implemented lexical coverage"])
+    for rule_id, scope in COVERAGE.items():
+        coverage.append([rule_id, scope])
+    _style_header(coverage, 1, 2)
+    coverage.column_dimensions["A"].width = 25
+    coverage.column_dimensions["B"].width = 110
+    coverage.freeze_panes = "A2"
+    for row in coverage.iter_rows(min_row=2):
+        row[1].alignment = Alignment(wrap_text=True, vertical="top")
+        coverage.row_dimensions[row[0].row].height = 32
 
     directory = os.path.dirname(os.path.abspath(path))
     if directory and not os.path.isdir(directory):
@@ -112,7 +124,7 @@ def _sheet_summary(ws, violations, stats, config):
     ws["A1"] = "C / C++ Coding Standard Scan"
     ws["A1"].font = TITLE_FONT
     ws["A2"] = ("Static scan against the house C coding standard, "
-                "MISRA C:2025 and the CWE weakness list.")
+                "MISRA C:2025, MISRA C++:2023 and CWE. Lexical subset; not a compliance certification.")
     ws["A2"].font = Font(italic=True, color="4A5560")
 
     meta = [
@@ -123,6 +135,8 @@ def _sheet_summary(ws, violations, stats, config):
         ("Lines scanned", stats["line_count"]),
         ("Rules active", stats["active_rules"]),
         ("Violations found", len(violations)),
+        ("Language", config["language"]),
+        (".h language", config["header_language"]),
     ]
     row = 4
     for label, value in meta:
@@ -300,7 +314,7 @@ def _sheet_by_rule(ws, violations):
             cell.alignment = Alignment(vertical="top", wrap_text=(col == 5))
         ws.cell(row=row, column=3).fill = SEVERITY_FILL[rule.severity]
 
-    widths = [16, 14, 10, 11, 60, 8, 14]
+    widths = [25, 22, 10, 11, 60, 8, 14]
     for i, width in enumerate(widths, start=1):
         ws.column_dimensions[get_column_letter(i)].width = width
     ws.freeze_panes = "A2"
@@ -329,7 +343,7 @@ def _sheet_rules(ws, config):
             cell.alignment = Alignment(vertical="top", wrap_text=(col >= 7))
         ws.cell(row=row, column=4).fill = SEVERITY_FILL[rule.severity]
 
-    widths = [16, 14, 16, 10, 11, 9, 46, 62, 52]
+    widths = [25, 22, 16, 10, 11, 9, 46, 62, 52]
     for i, width in enumerate(widths, start=1):
         ws.column_dimensions[get_column_letter(i)].width = width
     ws.freeze_panes = "A2"
