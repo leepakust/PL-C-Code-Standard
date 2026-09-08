@@ -751,6 +751,11 @@ class ScannerApp(tk.Tk):
         self.detail.insert("end", rule.why + "\n")
         self.detail.insert("end", "How to fix it: ", "label")
         self.detail.insert("end", rule.fix + "\n")
+        self.detail.insert("end", "\n" + v.correction_kind + ":\n", "label")
+        if v.suggested_code:
+            self.detail.insert("end", v.suggested_code + "\n", "code")
+        if v.correction_note:
+            self.detail.insert("end", v.correction_note + "\n")
         from cstdscan.misra_cpp_rules import COVERAGE
         if v.rule_id in COVERAGE:
             self.detail.insert("end", "\nImplemented coverage\n", "h2")

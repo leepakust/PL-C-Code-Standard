@@ -8,6 +8,7 @@ from .checks import FileChecker
 from .config import Config
 from .model import RULES
 from .misra_cpp import CppFileChecker
+from .corrections import add_correction
 from .project import ProjectIndex, discover_files, project_checks
 from .source import read_source
 
@@ -60,6 +61,9 @@ def scan(roots, config=None, progress=None):
         result.errors.append(("<project>", "%s: %s" % (type(exc).__name__,
                                                        exc)))
 
+    source_by_path = {sf.rel: sf for sf in files}
+    for violation in result.violations:
+        add_correction(violation, source_by_path.get(violation.file))
     result.violations.sort(key=lambda v: v.sort_key())
 
     roots_text = ", ".join(os.path.abspath(r) for r in roots)

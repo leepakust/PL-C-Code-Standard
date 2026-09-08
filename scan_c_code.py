@@ -214,6 +214,13 @@ def print_findings(violations, limit):
             print("         found: %s" % v.detail)
         if v.code:
             print("         code : %s" % v.code[:100])
+        print("         fix  : %s" % rule.fix)
+        if v.suggested_code:
+            print("         %s:" % v.correction_kind)
+            for line in v.suggested_code.splitlines():
+                print("           " + line)
+        if v.correction_note:
+            print("         note : %s" % v.correction_note)
     if len(violations) > limit:
         print("... and %d more in the report." % (len(violations) - limit))
 

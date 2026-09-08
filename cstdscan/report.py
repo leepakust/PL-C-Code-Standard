@@ -52,6 +52,9 @@ VIOLATION_COLUMNS = [
     ("How to fix", 48),
     ("Also cites", 20),
     ("Confidence", 11),
+    ("Correction type", 25),
+    ("Suggested correction / example", 70),
+    ("Correction notes", 65),
 ]
 
 
@@ -219,6 +222,9 @@ def _sheet_violations(ws, violations):
             rule.fix,
             also,
             v.confidence,
+            v.correction_kind,
+            v.suggested_code,
+            v.correction_note,
         ])
         row = ws.max_row
         for col in range(1, len(headers) + 1):
@@ -231,6 +237,8 @@ def _sheet_violations(ws, violations):
                                           SEVERITY_FONT["Low"])
         sev_cell.alignment = Alignment(vertical="top", horizontal="center")
         ws.cell(row=row, column=11).font = MONO_FONT
+        ws.cell(row=row, column=18).font = MONO_FONT
+        ws.row_dimensions[row].height = min(300, max(45, 15 * (v.suggested_code.count("\n") + 2)))
 
     for i, (_h, width) in enumerate(VIOLATION_COLUMNS, start=1):
         ws.column_dimensions[get_column_letter(i)].width = width
@@ -362,7 +370,8 @@ def write_csv(path, violations):
                              rule.standard, v.rule_id, rule.title, v.file,
                              v.line, v.column, v.function, v.code, v.detail,
                              rule.why, rule.fix, ", ".join(v.also),
-                             v.confidence])
+                             v.confidence, v.correction_kind,
+                             v.suggested_code, v.correction_note])
     return path
 
 

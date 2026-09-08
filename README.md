@@ -172,6 +172,30 @@ Security for the CWE entries.
 when the check made a judgement a compiler would make better (for example,
 whether a name is a pointer, or whether a function returns a value).
 
+## Correction advice
+
+Select a finding in the GUI to see **How to fix it**, followed by correction
+guidance. Excel and CSV reports include **Correction type**, **Suggested
+correction / example**, and **Correction notes** columns. Console findings
+also show the advice.
+
+- **Suggested line (review)** uses the actual source line for supported
+  simple changes: C++ `NULL` to `nullptr`, octal literals to their decimal
+  value (C and C++), and C++ lowercase `l` suffixes to uppercase `L`.
+  Comments, literal contents, indentation and unrelated tokens are retained.
+- **Illustrative example** demonstrates an approach for changes such as
+  replacing a union, adding a pointer check, or replacing a function-like
+  macro. Adapt types, names, includes, error handling and call sites to the
+  actual program. These examples are not drop-in replacements.
+- **Manual review** means the rule's existing How to fix explanation applies,
+  but there is no context-independent code replacement.
+
+Suggestions address one finding at a time and may leave other findings on
+the same line. Review them, build, test and rescan. The scanner does not edit
+scanned source files or automatically apply corrections.
+
+Run correction tests with `python -m unittest -v test_corrections`.
+
 ## Suppressing a finding
 
 Put a comment on the offending line, or on the line above:

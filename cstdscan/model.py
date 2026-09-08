@@ -42,6 +42,9 @@ class Violation:
     function: str = ""   # enclosing function, if any
     also: List[str] = field(default_factory=list)   # cross-referenced rules
     confidence: str = "High"                        # High | Medium | Low
+    suggested_code: str = ""
+    correction_kind: str = "Manual review"
+    correction_note: str = ""
 
     def rule(self) -> Rule:
         return RULES[self.rule_id]

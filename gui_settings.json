@@ -1,12 +1,21 @@
 {
   "path": "C:\\MyFile\\Projects\\941-Faraday\\src\\UserBranch_MainModule_Comms\\",
+  "language": "auto",
+  "header_language": "auto",
   "min_severity": "Low",
   "exclude": "*/Drivers/*; */Middlewares/*; */ST67W61/*; */USBX/*; */FileX/*",
-  "exclude_names": "*- Copy*; *.bak; *.orig; *.old; *.hpp; *.cpp",
+  "exclude_names": "*- Copy*; *.bak; *.orig; *.old; *.c; *.h",
   "skip_noisy": false,
   "write_excel": false,
   "disabled_rules": [],
   "standards": [
-    "MISRA C:2025"
+    "MISRA C:2025",
+    "MISRA C++:2023"
+  ],
+  "known_standards": [
+    "C-STD",
+    "MISRA C:2025",
+    "MISRA C++:2023",
+    "CWE"
   ]
 }
