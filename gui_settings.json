@@ -9,8 +9,8 @@
   "write_excel": false,
   "disabled_rules": [],
   "standards": [
-    "MISRA C:2025",
-    "MISRA C++:2023"
+    "MISRA C++:2023",
+    "CWE"
   ],
   "known_standards": [
     "C-STD",
