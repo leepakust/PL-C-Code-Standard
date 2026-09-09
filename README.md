@@ -1,5 +1,11 @@
 # C / C++ Coding Standard Scanner
 
+Licensed under the [PolyForm Noncommercial License 1.0.0](LICENSE).
+Use, modification and distribution are permitted for the purposes described
+in that license. Commercial use outside those permissions requires a separate
+license from the copyright holder. Third-party dependencies and the MISRA
+reference documents retain their respective licenses.
+
 A static scanner for C and C++ source, in the spirit of a lint tool. It reads
 the source directly — no build, no include paths, no toolchain — and reports
 potential departures from four rule sets, selected by language and configuration:
